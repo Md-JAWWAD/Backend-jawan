@@ -106,18 +106,27 @@
 // CLASS # 03
 
 import express from "express";
-import postModel from "./models/postSchema.js";
+// import postModel from "./models/postSchema.js";
 import mongoose from "mongoose";
-import chalk from "chalk";
+// import chalk from "chalk";
 import bcrypt from "bcryptjs";
-import cors from "cors"
+import cors from "cors";
 import userModel from "./models/userSchema.js";
+import env from "dotenv";
+import jwt from "jsonwebtoken";
+import userVerifyMiddle from "./middleware/userVerify.js";
+env.config();
+
 const app = express();
-const PORT = 4200;
+
+// const PORT = 4200;
+const PORT = process.env.PORT;
+const DBURI = process.env.MONGODB_URI;
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+app.use(cors());
 
-const DBURI = "mongodb+srv://mdjawwad:mdjawwad123@clusterjawad01.c5lq7.mongodb.net/";
+// const DBURI = "mongodb+srv://mdjawwad:mdjawwad123@clusterjawad01.c5lq7.mongodb.net/";
 
 mongoose.connect(DBURI);
 
@@ -181,7 +190,9 @@ mongoose.connection.on("error", (err) => console.log("MongoDB error", err));
 //     }
 //   )
 // })
-
+app.get("/", (request, response) => {
+  response.send("Jawad");
+});
 // SIGNUP
 
 app.post("/api/userSign", async (req, res) => {
@@ -193,19 +204,16 @@ app.post("/api/userSign", async (req, res) => {
     return;
   }
 
-  const emailExist = await userModel.findOne({email})
+  const emailExist = await userModel.findOne({ email });
 
   // console.log("emailExist", emailExist) Here: if email not exist it show "null" in console
 
-if (emailExist !== null)
-{
-  res.json(
-    {
-      message: "User already registered!"
-    }
-  )
-  return
-}
+  if (emailExist !== null) {
+    res.json({
+      message: "User already registered!",
+    });
+    return;
+  }
 
   const encrptPassword = await bcrypt.hash(password, 10);
 
@@ -218,7 +226,7 @@ if (emailExist !== null)
 
   const userCreated = await userModel.create(userObj);
 
-  res.json({
+  res.statusCode(200).json({
     message: "User created successfully!",
     data: userCreated,
   });
@@ -236,31 +244,92 @@ app.post("/api/userLogin", async (req, res) => {
     return;
   }
   const emailExist = await userModel.findOne({ email });
-// console.log("emailExist" ,emailExist) Here: if email not exist it show "false" in console
+  // console.log("emailExist" ,emailExist) Here: if email not exist it show "false" in console
   if (!emailExist) {
     res.json({
       message: "Invalid email or password!",
+      status: false,
     });
     return;
   }
-
   const comparePassword = await bcrypt.compare(password, emailExist.password);
 
-  if (comparePassword) {
+  if (!comparePassword) {
     res.json({
-      message: "Login Successfully!",
+      message: "Invalid email & password",
+      status: false,
     });
     return;
   }
-
+  
+  var token = jwt.sign(
+    {
+      email: emailExist.email
+    },
+    process.env.JWT_SECRET_KEY
+  );
   res.json({
-    message: "Invalid email or password!",
+    message: "Login Successfull",
+    status: true,
+    token,
+    email,
   });
+});
+app.get("/api/getUsers", userVerifyMiddle, async (req, res) => {
+  try {
+    const response = await userModel.find({});
+    res.json({
+      message: "all users got successfully",
+      status: true,
+      data: response,
+    });
+  } catch (error) {
+    res.json({
+      message: "Error here",
+      status: false,
+    });
+  }
 });
 
 app.listen(PORT, () => {
-  console.log("Server created Successfully!");
+  console.log(`Server created Successfully ${PORT}`);
 });
+// LAST CLASS ON BACKEND: TOPIC: JSON WEB TOKEN
+
+// var token = jwt.sign(
+//   {
+//     firstName: emailExist.firstName,
+//     lastName: emailExist.lastName,
+//     email: emailExist.email,
+//     password: emailExist.password,
+//   },
+//   process.env.JWT_SECRET_KEY
+// );
+
+// });
+
+// CREATE an API to GET ALL USERS DATA from DB
+
+// app.get("/api/getUsers", userVerifyMiddle , async (req, res) => {
+//   try {
+//     const res = await userModel.find({})
+//     res.json(
+//       {
+//         message: "all users gotten successfully",
+//         status: true,
+//         data: res
+//       }
+//     )
+//   }
+//   catch (error) {
+//     res.json(
+//       {
+//         message: "Error here",
+//         status: false
+//       }
+//     )
+//   }
+// })
 
 // // List of Methods to get, update or delete Data on DB:
 
@@ -274,8 +343,8 @@ app.listen(PORT, () => {
 // For password encription : A library called as bcryptjs
 // For dencription :
 // We can use encription such as when we need to match sign up and login password
-// Hacker: emal passwords invalid
+// Hacker: email passwords invalid must sow to avoid hackers to attack
 // For Backend Deploy: cyclic (Its now Shutdown)
 // For Backend Deploy: Railway (Its available but paid)
 // For Backend Deploy: Vercel (Its available and free)
-// cors: A 3rd part apps used to 
+// cors: A 3rd part apps used to interact with Frontend and connect with DB
