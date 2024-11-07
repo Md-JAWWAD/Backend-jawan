@@ -12,14 +12,14 @@ const userVerifyMiddle = (req, res, next) => {
     next();
   } else {
     res.json({
-      message: "token is invalid",
+      message: "token is invalid, a decoded err",
       status: false
     });
   }
 }
 catch (error) {
   res.json({
-    message: "token is invalid",
+    message: "token is invalid, a catch err",
   });
 }
 };
